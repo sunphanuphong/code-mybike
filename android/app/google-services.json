@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "308421722887",
+    "project_id": "mybike02-ec694",
+    "storage_bucket": "mybike02-ec694.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:308421722887:android:11873da5368189bc0b3ba2",
+        "android_client_info": {
+          "package_name": "com.example.mybike"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiBXvhX4YenKelpFUA30_R5p_OVkbHy8o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
