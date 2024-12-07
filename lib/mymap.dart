@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'qrscan.dart';
+import 'package:flutter/material.dart';
 
 class MapsPage extends StatefulWidget {
   const MapsPage({super.key});
@@ -17,6 +21,10 @@ class _MapsPageState extends State<MapsPage> {
   Set<Marker> _markers = {};
   final databaseReference = FirebaseDatabase.instance.ref();
   double? bike1Latitude, bike1Longitude, bike2Latitude, bike2Longitude;
+  List<LatLng> polylineCoordinates = [];
+  Polyline? routePolyline;
+  Set<Polyline> _polylines = {};
+  final String googleAPIKey = "AIzaSyBiBXvhX4YenKelpFUA30_R5p_OVkbHy8o";
 
   @override
   void initState() {
@@ -77,49 +85,53 @@ class _MapsPageState extends State<MapsPage> {
     );
   }
 
-void _listenToBikeLocation() {
+  void _listenToBikeLocation() {
   databaseReference.child('gps_data').onValue.listen((event) {
     if (event.snapshot.value != null) {
       final data = Map<String, dynamic>.from(event.snapshot.value as Map);
 
-      double? newLatitude = double.tryParse(data['latitude'].toString());
-      double? newLongitude = double.tryParse(data['longitude'].toString());
+if (data.containsKey('latitude') && data.containsKey('longitude')) {
+        double? newLatitude = double.tryParse(data['latitude'].toString());
+        double? newLongitude = double.tryParse(data['longitude'].toString());
 
-      // Check if there is a significant change in the position
-      if (newLatitude != null && newLongitude != null &&
-          (bike1Latitude != newLatitude || bike1Longitude != newLongitude)) {
+        // Check if there is a significant change in the position
+        if (newLatitude != null && newLongitude != null &&
+            (bike1Latitude != newLatitude || bike1Longitude != newLongitude)) {
 
-        setState(() {
-          bike1Latitude = newLatitude;
-          bike1Longitude = newLongitude;
-          bike2Latitude = newLatitude + 0.001;
-          bike2Longitude = newLongitude + 0.001;
+          setState(() {
+            bike1Latitude = newLatitude;
+            bike1Longitude = newLongitude;
+            bike2Latitude = newLatitude + 0.001;
+            bike2Longitude = newLongitude + 0.001;
 
-          _markers = {
-            Marker(
-              markerId: const MarkerId('bike1'),
-              position: LatLng(bike1Latitude!, bike1Longitude!),
-              infoWindow: const InfoWindow(
-                title: "จักรยานที่ 1",
-                snippet: "สถานะ: ว่าง",
+            _markers = {
+              Marker(
+                markerId: const MarkerId('bike1'),
+                position: LatLng(bike1Latitude!, bike1Longitude!),
+                infoWindow: const InfoWindow(
+                  title: "จักรยานที่ 1",
+                  snippet: "สถานะ: ว่าง",
+                ),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
               ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-            ),
-            Marker(
-              markerId: const MarkerId('bike2'),
-              position: LatLng(bike2Latitude!, bike2Longitude!),
-              infoWindow: const InfoWindow(
-                title: "จักรยานที่ 2",
-                snippet: "สถานะ: ไม่ว่าง",
+              Marker(
+                markerId: const MarkerId('bike2'),
+                position: LatLng(bike2Latitude!, bike2Longitude!),
+                infoWindow: const InfoWindow(
+                  title: "จักรยานที่ 2",
+                  snippet: "สถานะ: ไม่ว่าง",
+                ),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
               ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-            ),
-          };
-        });
+            };
+          });
+        }
       }
-    }
-  });
-}
+      } else {
+        debugPrint("ข้อมูลไม่สมบูรณ์: ไม่มี key 'latitude' หรือ 'longitude'");
+      }
+    });
+  }
 
 
   void _launchNavigation(double latitude, double longitude) async {
@@ -143,12 +155,55 @@ void _listenToBikeLocation() {
           },
         ),
       ),
-      body: userLocation == null
+body: userLocation == null
           ? const Center(
               child: CircularProgressIndicator(),
             )
           : Column(
               children: [
+                // ปุ่มสแกน QR ในกรอบสีน้ำเงิน
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.all(10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.qr_code_scanner, color: Colors.blue),
+                        onPressed: () {
+                          // นำทางไปยังหน้า QR Scanner
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const QRScanPage(), // ใช้ QRScanPage ของคุณ
+                            ),
+                          );
+                        },
+                      ),
+                      Text(
+                        "สแกน QR Code",
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 Expanded(
                   child: GoogleMap(
                     mapType: MapType.normal,
@@ -158,6 +213,7 @@ void _listenToBikeLocation() {
                       target: LatLng(userLocation!.latitude, userLocation!.longitude),
                       zoom: 15,
                     ),
+                    polylines: routePolyline != null? Set<Polyline>.of([routePolyline!]): {},
                     markers: _markers,
                   ),
                 ),
@@ -167,7 +223,7 @@ void _listenToBikeLocation() {
             ),
     );
   }
-
+  
   Widget _buildLocationStatus(String title, String status, double? latitude, double? longitude) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
@@ -197,7 +253,8 @@ void _listenToBikeLocation() {
           TextButton(
             onPressed: () {
               if (latitude != null && longitude != null) {
-                _launchNavigation(latitude, longitude);
+                _addMarker(latitude, longitude);
+                // _launchNavigation(latitude, longitude);
               }
             },
             child: const Text(
@@ -215,4 +272,89 @@ void _listenToBikeLocation() {
       mapController = controller;
     });
   }
+
+  void _addMarker(double? latitude, double? longitude) async {
+    if (latitude == null || longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid Latitude or Longitude')),
+      );
+      return;
+    }
+
+    final marker = Marker(
+      markerId: MarkerId('${latitude}_${longitude}'),
+      position: LatLng(latitude, longitude),
+      infoWindow: const InfoWindow(title: 'Custom Pin'),
+    );
+
+    setState(() {
+      _markers.add(marker);
+      mapController.animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));
+    });
+
+    await _getDirections(
+      LatLng(userLocation!.latitude, userLocation!.longitude),
+      LatLng(latitude, longitude),
+    );
+  }
+
+  Future<void> _getDirections(LatLng origin, LatLng destination) async {
+    final String url =
+        "https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$googleAPIKey";
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data["routes"].isNotEmpty) {
+        final route = data["routes"][0]["overview_polyline"]["points"];
+        polylineCoordinates = _decodePolyline(route);
+        setState(() {
+          routePolyline = Polyline(
+            polylineId: PolylineId("route"),
+            points: polylineCoordinates,
+            color: const Color.fromARGB(255, 15, 83, 255),
+            width: 5,
+          );
+          if (routePolyline != null) {
+            _polylines.add(routePolyline!); // ใช้ ! เพื่อบอกว่าเราแน่ใจว่าไม่ใช่ null
+          } else {
+            print("routePolyline is null!");
+          }
+        });
+      }
+    } else {
+      throw Exception('Failed to load directions');
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> polyline = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int shift = 0, result = 0;
+      int b;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lng += dlng;
+
+      polyline.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return polyline;
+  }
+
 }
