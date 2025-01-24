@@ -1,8 +1,8 @@
 import 'dart:async'; // นำเข้า Dart's async library
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'qrscan.dart'; // นำเข้าไฟล์ QRScanPage
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       ),
       routes: {
         '/mainbikeone': (context) => const ControlScreen1(),
-        '/qrscan': (context) => const QRScanPage(),
+        // '/qrscan': (context) => const QRScanPage(),
       },
       initialRoute: '/qrscan',
     );
@@ -51,7 +51,10 @@ class _ControlScreenState extends State<ControlScreen1> {
   Future<void> _checkIfAdmin() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
       setState(() {
         isAdmin = userDoc['role'] == 'admin';
       });
@@ -99,12 +102,14 @@ class _ControlScreenState extends State<ControlScreen1> {
 
               // สวิตช์ที่ไม่แสดงเฉพาะสำหรับผู้ใช้ที่เป็นแอดมิน
               if (isAdmin) ...[
-                _buildSwitchRow('เปิดแจ้งเตือนการเตือน', isAlertEnabled, (value) {
+                _buildSwitchRow('เปิดแจ้งเตือนการเตือน', isAlertEnabled,
+                    (value) {
                   setState(() {
                     isAlertEnabled = value;
                   });
                 }),
-                _buildSwitchRow('ควบคุมรถยนต์โดย Admin', isAdminControlEnabled, (value) {
+                _buildSwitchRow('ควบคุมรถยนต์โดย Admin', isAdminControlEnabled,
+                    (value) {
                   setState(() {
                     isAdminControlEnabled = value;
                   });
@@ -135,9 +140,12 @@ class _ControlScreenState extends State<ControlScreen1> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildTimeCircle(_elapsedDuration.inMinutes.toString().padLeft(2, '0')),
+                  _buildTimeCircle(
+                      _elapsedDuration.inMinutes.toString().padLeft(2, '0')),
                   _buildTimeCircle(':'),
-                  _buildTimeCircle((_elapsedDuration.inSeconds % 60).toString().padLeft(2, '0')),
+                  _buildTimeCircle((_elapsedDuration.inSeconds % 60)
+                      .toString()
+                      .padLeft(2, '0')),
                 ],
               ),
               if (isAdmin) ...[

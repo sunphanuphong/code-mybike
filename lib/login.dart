@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'Controller/LoginController.dart';
 
 class LoginPage extends StatelessWidget {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   LoginPage({super.key});
 
@@ -46,48 +47,22 @@ class LoginPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                String email = _emailController.text.trim();
-                String password = _passwordController.text.trim();
-
-                if (email.isEmpty || password.isEmpty) {
-                  _showDialog(context, 'Login Failed', 'Please enter email and password.');
-                  return;
-                }
-
-                try {
-                  UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-                    email: email,
-                    password: password,
-                  );
-
-                  User? user = FirebaseAuth.instance.currentUser;
-
-                  if (user != null && user.emailVerified) {
-                    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-
-                    if (userDoc.exists) {
-                      String role = userDoc['role'] ?? 'user'; 
-
-                      if (role == 'user') {
-                        Navigator.pushReplacementNamed(context, '/mymap');
-                      } else {
-                        Navigator.pushReplacementNamed(context, '/bike');
-                      }
-                    } else {
-                      _showDialog(context, 'Account Not Found', 'Your account could not be found in the system.');
-                    }
-                  } else {
-                    _showDialog(context, 'Email Not Verified', 'Please verify your email before logging in.');
-                  }
-                } catch (e) {
-                  print('Failed to login: $e');
-                  _showDialog(context, 'Login Failed', 'Failed to login. Please try again.');
-                }
-              },
-              child: const Text('Login'),
-            ),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: () {
+                      final controller = LoginController(
+                        context: context,
+                        emailController: _emailController,
+                        passwordController: _passwordController,
+                        updateLoadingState: (isLoading) {
+                          _isLoading = isLoading;
+                        },
+                      );
+                      controller.handleLogin();
+                    },
+                    child: const Text('Login'),
+                  ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () {
@@ -98,26 +73,6 @@ class LoginPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  void _showDialog(BuildContext context, String title, String content) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
     );
   }
 }
