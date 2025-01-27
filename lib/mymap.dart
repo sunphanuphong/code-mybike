@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'package:mybike/bike.dart';
 import 'package:mybike/login.dart';
 import 'package:mybike/model/users_model.dart';
+
+import 'model/bike_model.dart';
 
 class MapsPage extends StatefulWidget {
   final UsersModel usersModel;
@@ -29,13 +32,23 @@ class _MapsPageState extends State<MapsPage> {
   List<LatLng> polylineCoordinates = [];
   Polyline? routePolyline;
   Set<Polyline> _polylines = {};
-  final String googleAPIKey = "AIzaSyBiBXvhX4YenKelpFUA30_R5p_OVkbHy8o";
+  String bikeName = "จักรยานที่ 1";
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String bikeStatus = "ว่าง";
+  BitmapDescriptor markerIcon =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
 
+  final DatabaseReference _databaseReference =
+      FirebaseDatabase.instance.ref('gps_data');
+  final String googleAPIKey = "AIzaSyBiBXvhX4YenKelpFUA30_R5p_OVkbHy8o";
+  BikeModel? currentBike;
+  StreamSubscription<DocumentSnapshot>? _bikeDataSubscription;
   @override
   void initState() {
     super.initState();
     _getLocation();
     _listenToBikeLocation();
+    _setupBikeDataListener();
   }
 
   @override
@@ -123,44 +136,64 @@ class _MapsPageState extends State<MapsPage> {
   }
 
   void _listenToBikeLocation() {
-    _bikeLocationSubscription =
-        databaseReference.child('gps_data').onValue.listen((event) {
+    _bikeLocationSubscription = _databaseReference.onValue.listen((event) {
       if (!mounted) return;
 
-      if (event.snapshot.value != null) {
-        final data = Map<String, dynamic>.from(event.snapshot.value as Map);
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data != null) {
+        double? newLatitude = double.tryParse(data['latitude'].toString());
+        double? newLongitude = double.tryParse(data['longitude'].toString());
 
-        if (data.containsKey('latitude') && data.containsKey('longitude')) {
-          double? newLatitude = double.tryParse(data['latitude'].toString());
-          double? newLongitude = double.tryParse(data['longitude'].toString());
-
-          if (newLatitude != null && newLongitude != null && mounted) {
-            setState(() {
-              bike1Latitude = newLatitude;
-              bike1Longitude = newLongitude;
-
-              _markers = {
-                Marker(
-                  markerId: const MarkerId('bike1'),
-                  position: LatLng(bike1Latitude!, bike1Longitude!),
-                  infoWindow: const InfoWindow(
-                    title: "จักรยานที่ 1",
-                    snippet: "สถานะ: ว่าง",
-                  ),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueGreen),
-                ),
-              };
-
-              if (mapController != null) {
-                mapController.animateCamera(CameraUpdate.newLatLng(
-                    LatLng(bike1Latitude!, bike1Longitude!)));
-              }
-            });
-          }
+        if (newLatitude != null && newLongitude != null) {
+          setState(() {
+            bike1Latitude = newLatitude;
+            bike1Longitude = newLongitude;
+            _updateMarkerForBike();
+          });
         }
       }
     });
+  }
+
+  void _setupBikeDataListener() {
+    _bikeDataSubscription = _firestore
+        .collection('bike')
+        .doc('bikeName')
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        setState(() {
+          currentBike = BikeModel.fromFirestore(
+              snapshot.data() as Map<String, dynamic>, snapshot.id);
+          _updateMarkerForBike();
+        });
+      }
+    });
+  }
+
+  void _updateMarkerForBike() {
+    if (currentBike != null &&
+        bike1Latitude != null &&
+        bike1Longitude != null) {
+      setState(() {
+        final isAvailable = currentBike!.status == 'on';
+        final markerIcon = isAvailable
+            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
+            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+
+        _markers = {
+          Marker(
+            markerId: MarkerId(currentBike!.bikeName),
+            position: LatLng(bike1Latitude!, bike1Longitude!),
+            infoWindow: InfoWindow(
+              title: currentBike!.bikeName,
+              snippet: "สถานะ: ${isAvailable ? 'ว่าง' : 'ไม่ว่าง'}",
+            ),
+            icon: markerIcon,
+          ),
+        };
+      });
+    }
   }
 
   @override
@@ -241,7 +274,7 @@ class _MapsPageState extends State<MapsPage> {
                   ),
                 ),
                 _buildLocationStatus(
-                    "จักรยานที่ 1", "ว่าง", bike1Latitude, bike1Longitude),
+                    bikeName, bikeStatus, bike1Latitude, bike1Longitude),
               ],
             ),
     );
@@ -249,47 +282,131 @@ class _MapsPageState extends State<MapsPage> {
 
   Widget _buildLocationStatus(
       String title, String status, double? latitude, double? longitude) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
-      padding: const EdgeInsets.all(8.0),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.directions_bike,
-              color: status == "ว่าง" ? Colors.green : Colors.red),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                status,
-                style: const TextStyle(fontSize: 14),
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore.collection('bike').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text('ไม่พบข้อมูลจักรยาน');
+        }
+
+        // Get the first bike document
+        var bikeDoc = snapshot.data!.docs.first;
+        var bikeData = bikeDoc.data() as Map<String, dynamic>;
+        var bike = BikeModel.fromFirestore(bikeData, bikeDoc.id);
+
+        final bool isAvailable = bike.status == 'on';
+        final Color statusColor = isAvailable ? Colors.green : Colors.red;
+        final String statusText = isAvailable ? "ว่าง" : "ไม่ว่าง";
+
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8.0),
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const Spacer(),
-          TextButton(
-            onPressed: () {
-              if (latitude != null && longitude != null) {
-                _addMarker(latitude, longitude);
-                // _launchNavigation(latitude, longitude);
-              }
-            },
-            child: const Text(
-              'นำทาง',
-              style: TextStyle(color: Colors.blue),
-            ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.directions_bike,
+                  color: statusColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bike.bikeName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (bike.notification.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          "สถานะ: ${bike.notification}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // แสดงปุ่มนำทางเฉพาะเมื่อสถานะเป็น 'on'
+              if (isAvailable)
+                TextButton.icon(
+                  onPressed: () {
+                    if (latitude != null && longitude != null) {
+                      _addMarker(latitude, longitude);
+                    }
+                  },
+                  icon: const Icon(Icons.directions, size: 20),
+                  label: const Text('นำทาง'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
