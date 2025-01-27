@@ -152,7 +152,6 @@ class _MapsPageState extends State<MapsPage> {
                 ),
               };
 
-              // ตรวจสอบว่า mapController ถูกกำหนดค่าแล้ว
               if (mapController != null) {
                 mapController.animateCamera(CameraUpdate.newLatLng(
                     LatLng(bike1Latitude!, bike1Longitude!)));

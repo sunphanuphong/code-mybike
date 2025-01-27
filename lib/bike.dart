@@ -54,7 +54,7 @@ class BikePage extends StatelessWidget {
                   children: [
                     InkWell(
                       onTap: () {
-                        Navigator.pushNamed(context, '/mainbikeone');
+                        Navigator.pushNamed(context, '/bikeList');
                       },
                       child: buildStatusContainer(
                         context,
@@ -63,7 +63,6 @@ class BikePage extends StatelessWidget {
                         'คันที่ 1',
                       ),
                     ),
-                    // ช่องที่สองเป็นตัวอย่างปุ่มสำหรับหน้าร้านค้า
                     InkWell(
                       onTap: () {
                         Navigator.pushNamed(context, '/bikestatus2');
