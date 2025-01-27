@@ -52,8 +52,7 @@ class _ControlScreenState extends State<ControlScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              
-              // Switches
+
               _buildSwitchRow('ปลดล็อกรถจักรยาน', isUnlocked, (value) {
                 setState(() {
                   isUnlocked = value;
@@ -64,14 +63,15 @@ class _ControlScreenState extends State<ControlScreen> {
                   isAlertEnabled = value;
                 });
               }),
-              _buildSwitchRow('ควบคุมรถยนต์โดย Admin', isAdminControlEnabled, (value) {
+              _buildSwitchRow('ควบคุมรถยนต์โดย Admin', isAdminControlEnabled,
+                  (value) {
                 setState(() {
                   isAdminControlEnabled = value;
                 });
               }),
-              
+
               const SizedBox(height: 40),
-              
+
               // Time duration display
               const Text(
                 'ระยะเวลาการปลดล็อก',

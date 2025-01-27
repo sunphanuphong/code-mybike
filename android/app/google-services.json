@@ -1,8 +1,9 @@
 {
   "project_info": {
     "project_number": "308421722887",
+    "firebase_url": "https://mybike02-ec694-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "mybike02-ec694",
-    "storage_bucket": "mybike02-ec694.appspot.com"
+    "storage_bucket": "mybike02-ec694.firebasestorage.app"
   },
   "client": [
     {

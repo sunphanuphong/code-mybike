@@ -1,14 +1,19 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:mybike/login.dart';
+
+import 'model/users_model.dart';
 
 class BikePage extends StatelessWidget {
-  const BikePage({super.key});
+  final UsersModel usersModel;
+
+  const BikePage({super.key, required this.usersModel});
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: _getUserRole(), // ฟังก์ชันดึง role ของผู้ใช้
+      future: _getUserRole(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
@@ -27,19 +32,19 @@ class BikePage extends StatelessWidget {
             body: const Center(child: Text('ไม่สามารถดึงข้อมูลได้')),
           );
         }
-
-        // ตรวจสอบว่าผู้ใช้ปัจจุบันเป็นแอดมินหรือไม่
         bool isAdmin = snapshot.data == 'admin';
 
         return Scaffold(
           appBar: AppBar(
             title: Text(isAdmin ? 'admin' : 'หน้าแรก'),
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginPage()),
+                  );
+                }),
           ),
           body: Column(
             children: [
@@ -47,10 +52,9 @@ class BikePage extends StatelessWidget {
                 child: GridView.count(
                   crossAxisCount: 3,
                   children: [
-                    // ช่องแรกเป็นตัวอย่างของการใช้งาน BikeStatus1Page
                     InkWell(
                       onTap: () {
-                        Navigator.pushNamed(context, '/mainbikeone');
+                        Navigator.pushNamed(context, '/bikeList');
                       },
                       child: buildStatusContainer(
                         context,
@@ -59,7 +63,6 @@ class BikePage extends StatelessWidget {
                         'คันที่ 1',
                       ),
                     ),
-                    // ช่องที่สองเป็นตัวอย่างปุ่มสำหรับหน้าร้านค้า
                     InkWell(
                       onTap: () {
                         Navigator.pushNamed(context, '/bikestatus2');
@@ -114,7 +117,11 @@ class BikePage extends StatelessWidget {
                     const SizedBox(height: 10),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/mymap');
+                        Navigator.pushReplacementNamed(
+                          context,
+                          '/mymap',
+                          arguments: usersModel,
+                        );
                       },
                       child: const Text('ไปที่แผนที่'),
                     ),
@@ -148,7 +155,8 @@ class BikePage extends StatelessWidget {
     return data['role'] ?? 'user';
   }
 
-  Widget buildStatusContainer(BuildContext context, String imagePath, String title, String content) {
+  Widget buildStatusContainer(
+      BuildContext context, String imagePath, String title, String content) {
     return Container(
       margin: const EdgeInsets.all(8),
       padding: const EdgeInsets.all(20),

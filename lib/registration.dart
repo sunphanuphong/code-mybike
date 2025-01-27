@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:email_validator/email_validator.dart';
+
+import 'Controller/registerController.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -14,6 +13,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -25,130 +25,151 @@ class _RegistrationPageState extends State<RegistrationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.blue[50],
       appBar: AppBar(
-        title: const Text('Registration Page'),
+        backgroundColor: Colors.blue[600],
+        centerTitle: true,
+        title: const Text(
+          'Create Account',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(25.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Image.asset(
+                'assets/images/registration_icon.png',
+                height: 150,
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: () async {
-                      setState(() {
-                        _isLoading = true;
-                      });
-
-                      String email = _emailController.text.trim();
-                      String password = _passwordController.text.trim();
-
-                      if (email.isEmpty || password.isEmpty) {
-                        _showDialog('Registration Failed', 'Please enter both email and password.');
-                        setState(() {
-                          _isLoading = false;
-                        });
-                        return;
-                      }
-
-                      if (!EmailValidator.validate(email)) {
-                        _showDialog('Registration Failed', 'Please enter a valid email address.');
-                        setState(() {
-                          _isLoading = false;
-                        });
-                        return;
-                      }
-
-                      if (password.length < 6) {
-                        _showDialog('Registration Failed', 'Password must be at least 6 characters long.');
-                        setState(() {
-                          _isLoading = false;
-                        });
-                        return;
-                      }
-
-                      try {
-                        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                          email: email,
-                          password: password,
-                        );
-
-                        User? user = FirebaseAuth.instance.currentUser;
-
-                        if (user != null) {
-                          await user.sendEmailVerification();
-
-                          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-                            'email': email,
-                            'role': 'user',
-                          });
-
-                          print('User registered: ${user.uid}');
-
-                          _showDialog(
-                            'Registration Success',
-                            'User successfully registered! Please check your email to verify your account.',
-                            onOk: () {
-                              Navigator.pushReplacementNamed(context, '/login');
-                            },
-                          );
-                        } else {
-                          _showDialog('Registration Failed', 'Registration failed. Please try again.');
-                        }
-                        
-                      } catch (e) {
-                        print('Failed to register user: $e');
-                        _showDialog('Registration Failed', 'Failed to register user. Please try again later.');
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    },
-                    child: const Text('Register'),
-                  ),
-          ],
+              const SizedBox(height: 30),
+              _buildEmailTextField(),
+              const SizedBox(height: 20),
+              _buildPasswordTextField(),
+              const SizedBox(height: 30),
+              _buildRegisterButton(context),
+              const SizedBox(height: 20),
+              _buildLoginRedirect(context),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showDialog(String title, String content, {VoidCallback? onOk}) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                if (onOk != null) onOk();
-              },
-              child: const Text('OK'),
+  Widget _buildEmailTextField() {
+    return TextField(
+      controller: _emailController,
+      decoration: InputDecoration(
+        labelText: 'Email Address',
+        prefixIcon: Icon(Icons.email, color: Colors.blue[600]),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.blue[200]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+        ),
+      ),
+      keyboardType: TextInputType.emailAddress,
+    );
+  }
+
+  Widget _buildPasswordTextField() {
+    return TextField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: Icon(Icons.lock, color: Colors.blue[600]),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+            color: Colors.blue[600],
+          ),
+          onPressed: () {
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.blue[200]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegisterButton(BuildContext context) {
+    return ElevatedButton(
+      onPressed: _isLoading
+          ? null
+          : () {
+              final controller = RegisterController(
+                context: context,
+                emailController: _emailController,
+                passwordController: _passwordController,
+                updateLoadingState: (isLoading) {
+                  setState(() {
+                    _isLoading = isLoading;
+                  });
+                },
+              );
+              controller.handleRegistration();
+            },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[600],
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+      child: _isLoading
+          ? const CircularProgressIndicator(color: Colors.white)
+          : const Text(
+              'Register',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
-          ],
-        );
-      },
+    );
+  }
+
+  Widget _buildLoginRedirect(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Already have an account? ',
+          style: TextStyle(color: Colors.grey),
+        ),
+        GestureDetector(
+          onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+          child: Text(
+            'Login',
+            style: TextStyle(
+              color: Colors.blue[600],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
