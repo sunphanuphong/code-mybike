@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:mybike/model/users_model.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 
+import 'bike.dart';
+import 'mymap.dart';
+
 class QRScanPage extends StatefulWidget {
-  const QRScanPage({super.key});
+  final UsersModel usersModel;
+
+  const QRScanPage({super.key, required this.usersModel});
 
   @override
   _QRScanPageState createState() => _QRScanPageState();
@@ -20,7 +26,22 @@ class _QRScanPageState extends State<QRScanPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            // Navigate based on the user's role
+            if (widget.usersModel.role == 'admin') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BikePage(usersModel: widget.usersModel),
+                ),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MapsPage(usersModel: widget.usersModel),
+                ),
+              );
+            }
           },
         ),
       ),
@@ -51,11 +72,9 @@ class _QRScanPageState extends State<QRScanPage> {
       print('Scanned data: $scannedCode');
 
       if (scannedCode != null) {
-        // ตรวจสอบ QR code และนำทางไปยังหน้าที่ต้องการ
         if (scannedCode == 'myapp://mainbikeone') {
           Navigator.pushReplacementNamed(context, '/mainbikeone');
         } else {
-          // QR code ไม่ตรงกับเส้นทางที่ต้องการ
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Invalid QR Code'),

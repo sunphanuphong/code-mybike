@@ -110,7 +110,8 @@ class BikePage extends StatelessWidget {
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/qrscan');
+                        Navigator.pushReplacementNamed(context, '/qrscan',
+                            arguments: usersModel);
                       },
                       child: const Text('ไปที่ QR Scan'),
                     ),

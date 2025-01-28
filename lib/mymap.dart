@@ -10,7 +10,6 @@ import 'package:http/http.dart' as http;
 import 'package:mybike/bike.dart';
 import 'package:mybike/login.dart';
 import 'package:mybike/model/users_model.dart';
-import 'package:mybike/qrscan.dart';
 
 import 'model/bike_model.dart';
 
@@ -38,7 +37,6 @@ class _MapsPageState extends State<MapsPage> {
   String bikeStatus = "ว่าง";
   BitmapDescriptor markerIcon =
       BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-
   final DatabaseReference _databaseReference =
       FirebaseDatabase.instance.ref('gps_data');
   final String googleAPIKey = "AIzaSyBiBXvhX4YenKelpFUA30_R5p_OVkbHy8o";
@@ -239,14 +237,8 @@ class _MapsPageState extends State<MapsPage> {
                       IconButton(
                         icon: Icon(Icons.qr_code_scanner, color: Colors.blue),
                         onPressed: () {
-                          // นำทางไปยังหน้า QR Scanner
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const QRScanPage(), // ใช้ QRScanPage ของคุณ
-                            ),
-                          );
+                          Navigator.pushReplacementNamed(context, '/qrscan',
+                              arguments: widget.usersModel);
                         },
                       ),
                       Text(

@@ -21,7 +21,9 @@ class AppRoutes {
       case login:
         return MaterialPageRoute(builder: (_) => LoginPage());
       case qrScan:
-        return MaterialPageRoute(builder: (_) => QRScanPage());
+        final UsersModel usersModel = settings.arguments as UsersModel;
+        return MaterialPageRoute(
+            builder: (_) => QRScanPage(usersModel: usersModel));
       case register:
         return MaterialPageRoute(builder: (_) => const RegistrationPage());
       case bike:
