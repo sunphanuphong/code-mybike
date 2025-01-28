@@ -4,6 +4,7 @@ import 'package:mybike/bike.dart';
 import 'package:mybike/login.dart';
 import 'package:mybike/model/users_model.dart'; // นำเข้า UsersModel
 import 'package:mybike/mymap.dart'; // นำเข้า MapsPage
+import 'package:mybike/qrscan.dart';
 import 'package:mybike/registration.dart';
 
 class AppRoutes {
@@ -13,11 +14,14 @@ class AppRoutes {
   static const String mainbikeone = '/mainbikeone';
   static const String mymap = '/mymap';
   static const String bikeList = '/bikeList';
+  static const String qrScan = '/qrscan';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case login:
         return MaterialPageRoute(builder: (_) => LoginPage());
+      case qrScan:
+        return MaterialPageRoute(builder: (_) => QRScanPage());
       case register:
         return MaterialPageRoute(builder: (_) => const RegistrationPage());
       case bike:
