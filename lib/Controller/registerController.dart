@@ -40,7 +40,6 @@ class RegisterController {
       if (user != null) {
         await user.sendEmailVerification();
 
-        // สร้าง UsersModel
         final usersModel = UsersModel(
           userId: user.uid,
           email: email,
@@ -49,7 +48,6 @@ class RegisterController {
           status: 'inconfirm',
         );
 
-        // บันทึกข้อมูลทั้งหมดลง Firestore
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)

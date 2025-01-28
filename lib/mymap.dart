@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:mybike/bike.dart';
 import 'package:mybike/login.dart';
 import 'package:mybike/model/users_model.dart';
+import 'package:mybike/qrscan.dart';
 
 import 'model/bike_model.dart';
 
@@ -148,7 +149,7 @@ class _MapsPageState extends State<MapsPage> {
           setState(() {
             bike1Latitude = newLatitude;
             bike1Longitude = newLongitude;
-            _updateMarkerForBike();
+            _updateMarkerForBike(forceAdd: true);
           });
         }
       }
@@ -171,27 +172,29 @@ class _MapsPageState extends State<MapsPage> {
     });
   }
 
-  void _updateMarkerForBike() {
-    if (currentBike != null &&
+  void _updateMarkerForBike({bool forceAdd = false}) {
+    if ((currentBike != null || forceAdd) &&
         bike1Latitude != null &&
         bike1Longitude != null) {
       setState(() {
-        final isAvailable = currentBike!.status == 'on';
+        final isAvailable = currentBike?.status == 'on' ?? true;
         final markerIcon = isAvailable
             ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)
             : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
-        _markers = {
-          Marker(
-            markerId: MarkerId(currentBike!.bikeName),
-            position: LatLng(bike1Latitude!, bike1Longitude!),
-            infoWindow: InfoWindow(
-              title: currentBike!.bikeName,
-              snippet: "สถานะ: ${isAvailable ? 'ว่าง' : 'ไม่ว่าง'}",
-            ),
-            icon: markerIcon,
+        final bikeMarker = Marker(
+          markerId: MarkerId(currentBike?.bikeName ?? 'bike1'),
+          position: LatLng(bike1Latitude!, bike1Longitude!),
+          infoWindow: InfoWindow(
+            title: currentBike?.bikeName ?? bikeName,
+            snippet: isAvailable ? 'ว่าง' : 'ไม่ว่าง',
           ),
-        };
+          icon: markerIcon,
+        );
+
+        _markers.removeWhere((marker) =>
+            marker.markerId.value == (currentBike?.bikeName ?? 'bike1'));
+        _markers.add(bikeMarker);
       });
     }
   }
@@ -237,12 +240,13 @@ class _MapsPageState extends State<MapsPage> {
                         icon: Icon(Icons.qr_code_scanner, color: Colors.blue),
                         onPressed: () {
                           // นำทางไปยังหน้า QR Scanner
-                          // Navigator.push(
-                          //   context,
-                          //   MaterialPageRoute(
-                          //     builder: (context) => const QRScanPage(), // ใช้ QRScanPage ของคุณ
-                          //   ),
-                          // );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const QRScanPage(), // ใช้ QRScanPage ของคุณ
+                            ),
+                          );
                         },
                       ),
                       Text(
@@ -296,8 +300,6 @@ class _MapsPageState extends State<MapsPage> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Text('ไม่พบข้อมูลจักรยาน');
         }
-
-        // Get the first bike document
         var bikeDoc = snapshot.data!.docs.first;
         var bikeData = bikeDoc.data() as Map<String, dynamic>;
         var bike = BikeModel.fromFirestore(bikeData, bikeDoc.id);
@@ -374,13 +376,6 @@ class _MapsPageState extends State<MapsPage> {
                     if (bike.notification.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          "สถานะ: ${bike.notification}",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange,
-                          ),
-                        ),
                       ),
                   ],
                 ),
@@ -424,14 +419,17 @@ class _MapsPageState extends State<MapsPage> {
       return;
     }
 
-    final marker = Marker(
-      markerId: MarkerId('${latitude}_${longitude}'),
+    final destinationMarker = Marker(
+      markerId: MarkerId('destination_${latitude}_${longitude}'),
       position: LatLng(latitude, longitude),
-      infoWindow: const InfoWindow(title: 'Custom Pin'),
+      infoWindow: const InfoWindow(title: 'จุดหมาย'),
     );
 
     setState(() {
-      _markers.add(marker);
+      _markers.removeWhere(
+          (marker) => marker.markerId.value.startsWith('destination_'));
+      _markers.add(destinationMarker);
+
       if (mapController != null) {
         mapController
             .animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));
@@ -461,8 +459,7 @@ class _MapsPageState extends State<MapsPage> {
             width: 5,
           );
           if (routePolyline != null) {
-            _polylines
-                .add(routePolyline!); // ใช้ ! เพื่อบอกว่าเราแน่ใจว่าไม่ใช่ null
+            _polylines.add(routePolyline!);
           } else {
             print("routePolyline is null!");
           }

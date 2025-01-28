@@ -10,7 +10,7 @@ class UsersModel {
     required this.email,
     required this.password,
     required this.role,
-    this.status = 'inconfirm', // ค่าเริ่มต้นเป็น 'inconfirm'
+    this.status = 'inconfirm', 
   });
 
   Map<String, dynamic> toJson() {
