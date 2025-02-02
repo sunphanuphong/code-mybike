@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mybike/model/users_model.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 
+import 'ControlBike.dart';
 import 'bike.dart';
+import 'model/bike_model.dart';
 import 'mymap.dart';
 
 class QRScanPage extends StatefulWidget {
@@ -67,13 +70,36 @@ class _QRScanPageState extends State<QRScanPage> {
 
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
+    controller.scannedDataStream.listen((scanData) async {
       String? scannedCode = scanData.code;
       print('Scanned data: $scannedCode');
 
       if (scannedCode != null) {
         if (scannedCode == 'myapp://mainbikeone') {
-          Navigator.pushReplacementNamed(context, '/mainbikeone');
+          // ดึงข้อมูลจาก Firestore
+          DocumentSnapshot bikeDoc = await FirebaseFirestore.instance
+              .collection('bikes') // แทนที่ 'bikes' ด้วย collection จริงของคุณ
+              .doc('QMUIkVxPwhmVB9LA2BAf')
+              .get();
+
+          if (bikeDoc.exists) {
+            BikeModel bike = BikeModel.fromFirestore(
+                bikeDoc.data() as Map<String, dynamic>, bikeDoc.id);
+
+            // นำทางไปยัง ControlScreen พร้อมส่งอ็อบเจ็กต์ BikeModel
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ControlScreen(bike: bike),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Bike not found in Firestore'),
+              ),
+            );
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -82,7 +108,6 @@ class _QRScanPageState extends State<QRScanPage> {
           );
         }
       } else {
-        // QR code เป็น null
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to read QR Code'),
@@ -90,7 +115,6 @@ class _QRScanPageState extends State<QRScanPage> {
         );
       }
 
-      // ปิดกล้อง QR Scanner
       controller.pauseCamera();
     });
   }
